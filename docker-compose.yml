@@ -1,0 +1,104 @@
+##komentarz
+version: '2' #wersja docker-compose
+
+services: #serwisy konfiguracyjne
+   db: #nazwa serwisu
+     image: mysql:5.7 #obraz, z którego zostanie zbudowany kontener
+     container_name: db #nazwa kontenera, umozliwijaca wykonywanie poelecen na kontenerzea 
+     volumes:   #dyski
+       - db_data:/var/lib/mysql #zasób matka:[mapowany na] zasób kontenera [podczas instalacji kontener będzie pisał tam pliki]
+     restart: always #??? -zweryfikuj
+     environment: # parametry uruchomieniowe, wykorzystywane przy uruchomieniu konetenera, stosowane zgodnie z zaleceniami tworcy kontenera, zazwyczaj punkty wejscia skryptu sh
+       MYSQL_ROOT_PASSWORD: wordpress #parametr:wartość
+       MYSQL_DATABASE: wordpress
+       MYSQL_USER: some_user
+       MYSQL_PASSWORD: some_password
+       
+   knowledge_base: #itd
+     depends_on: #zelzny od maszyny o identyfkaitrze: db
+       - db
+     image: wordpress:latest
+     container_name: knowledge_base
+     volumes:
+       - knowledge_base_data:/var/www/html/wp-content
+     ports:
+       - "8000:80" # udostępniony port matka:kontener port z kontenera mapowany na port matki
+     restart: always
+     environment:
+       WORDPRESS_DB_HOST: db:3306
+       WORDPRESS_DB_PASSWORD: some_password
+       WORDPRESS_DB_NAME: knowledge_base
+       VIRTUAL_HOST: knowledge_base.company.com
+       
+   public_www:
+     depends_on:
+       - db
+     image: wordpress:latest
+     container_name: public_www
+     volumes:
+       - public_www_data:/var/www/html/wp-content
+     ports:
+       - "8001:80"
+     restart: always
+     environment:
+       WORDPRESS_DB_HOST: db:3306
+       WORDPRESS_DB_PASSWORD: some_password
+       WORDPRESS_DB_NAME: public_www
+       VIRTUAL_HOST: company.com
+       
+   crm_symfony_app:
+     depends_on:
+       - db
+     image: symfony_app
+     container_name: crm_symfony_app
+     ports:
+       - "8002:80"
+     restart: always
+     environment:
+         VIRTUAL_HOST: crm.company.com
+   pabx:
+     image: respoke/asterisk
+     container_name: pabx
+     volumes:
+       - pabx_data:/etc/asterisk/
+     expose:
+      - "5060/udp" #wystawiony port udp na zewnątrz, 
+      - "8089"
+      - "5038"
+      - "10000-10100"
+      - "443/tcp"
+     restart: always
+     
+   
+   mail_server:
+     image: catatnight/postfix
+     container_name: mail_server
+     environment:
+         maildomain: mail.example.com  
+         smtp_user: user:pwd 
+     volumes:
+       - mail_domainkeys_data:/etc/opendkim/domainkeys
+     ports:
+      - "587:587"
+     restart: always
+   
+   nginx-proxy:
+    image: jwilder/nginx-proxy
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro  
+     
+         
+volumes: #udostępniane przez matkę wolumeny
+    db_data: #/var/lib/docker/volumes
+    knowledge_base_data:
+    public_www_data:
+    pabx_data:
+    mail_domainkeys_data:
+        
+        
+
+        
+        
